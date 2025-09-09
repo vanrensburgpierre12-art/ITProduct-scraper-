@@ -59,9 +59,9 @@ def main():
     if args.web:
         # Start web interface
         print("Starting web interface...")
-        print("Open your browser and go to: http://localhost:5000")
+        print("Open your browser and go to: http://localhost:7000")
         from app import app
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        app.run(debug=True, host='0.0.0.0', port=7000)
         return
     
     print("🔧 Electronics Distributors Scraper")

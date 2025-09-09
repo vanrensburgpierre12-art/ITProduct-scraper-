@@ -58,7 +58,7 @@ Start the web interface:
 python main.py --web
 ```
 
-Then open your browser and go to: http://localhost:5000
+Then open your browser and go to: http://localhost:7000
 
 ### Command Line Interface
 
