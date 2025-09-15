@@ -15,3 +15,5 @@ flask-socketio==5.3.6
 apscheduler==3.10.4
 python-dotenv==1.0.0
 bcrypt==4.1.2
+gunicorn==21.2.0
+eventlet==0.33.3

@@ -48,5 +48,5 @@ EXPOSE 7000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:7000/api/auth/me || exit 1
 
-# Default command
-CMD ["python", "start_api.py"]
+# Default command - use Gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:7000", "--workers", "4", "--worker-class", "eventlet", "--worker-connections", "1000", "--timeout", "120", "--keep-alive", "2", "--max-requests", "1000", "--max-requests-jitter", "100", "--preload", "--access-logfile", "-", "--error-logfile", "-", "api_app:app"]
