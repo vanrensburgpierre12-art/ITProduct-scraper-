@@ -1,16 +1,19 @@
-# Electronics Distributors Scraper
+# Electronics Distributors Realtime Database API
 
-A comprehensive Python scraper for collecting product and stock information from South African electronics distributors.
+A comprehensive real-time database API for South African electronics distributors with live stock tracking, historical data, and WebSocket support.
 
-## Features
+## 🚀 Features
 
+- **Real-time Database**: PostgreSQL-powered with live stock tracking
 - **Multi-Distributor Support**: Scrapes from Communica, MicroRobotics, and Miro Distribution
-- **Web Interface**: Modern Flask-based UI for easy operation
-- **Command Line Interface**: Full CLI support for automation
-- **Multiple Output Formats**: CSV and JSON export options
-- **Real-time Progress**: Live status updates during scraping
-- **Error Handling**: Robust error handling and logging
-- **Stock Tracking**: Detailed stock status and quantity information
+- **RESTful API**: Comprehensive REST API with authentication
+- **WebSocket Support**: Real-time updates via WebSocket connections
+- **Historical Tracking**: Track price and stock changes over time
+- **Scheduled Updates**: Automatic scraping every 25 minutes
+- **Authentication**: API key and JWT token authentication
+- **Export Options**: CSV and JSON export capabilities
+- **Search & Filtering**: Advanced product search and filtering
+- **Statistics**: Comprehensive analytics and reporting
 
 ## Supported Distributors
 
@@ -39,62 +42,140 @@ For each product:
 - Product URL
 - Last Updated timestamp
 
-## Installation
+## 🛠️ Installation
 
-1. Clone or download the project
-2. Install dependencies:
+### Prerequisites
+- **Docker & Docker Compose** (Recommended)
+- OR Python 3.7+ + PostgreSQL 12+ + Chrome browser
+
+### 🐳 Docker Quick Start (Recommended)
+
+1. **Clone and start**:
    ```bash
+   git clone <your-repo>
+   cd electronics-distributors-api
+   ./docker-start.sh
+   ```
+
+That's it! The API will be available at `http://localhost:7000`
+
+📖 **Full Docker Guide**: [DOCKER_GUIDE.md](DOCKER_GUIDE.md)
+
+### 🐍 Manual Installation
+
+1. **Clone and setup**:
+   ```bash
+   git clone <your-repo>
+   cd electronics-distributors-api
    pip install -r requirements.txt
    ```
 
-3. Install Chrome browser (required for Selenium)
+2. **Setup PostgreSQL**:
+   ```bash
+   createdb electronics_db
+   ```
 
-## Usage
+3. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your database credentials
+   ```
 
-### Web Interface (Recommended)
+4. **Initialize database**:
+   ```bash
+   python init_db.py
+   ```
 
-Start the web interface:
+5. **Start the API**:
+   ```bash
+   python start_api.py
+   ```
+
+The API will be available at `http://localhost:7000`
+
+## 📖 API Usage
+
+### Authentication
+
+The API uses API key authentication. Get your API key from the admin user created during initialization.
+
 ```bash
-python main.py --web
+# Using API key
+curl -H "X-API-Key: your-api-key-here" http://localhost:7000/api/products
+
+# Using JWT token
+curl -H "Authorization: Bearer your-jwt-token" http://localhost:7000/api/products
 ```
 
-Then open your browser and go to: http://localhost:7000
+### Example API Calls
 
-### Command Line Interface
-
-Scrape all distributors:
 ```bash
+# Get all products
+curl -H "X-API-Key: your-key" http://localhost:7000/api/products
+
+# Search products
+curl -H "X-API-Key: your-key" "http://localhost:7000/api/products/search?q=arduino"
+
+# Get stock info for a specific product
+curl -H "X-API-Key: your-key" http://localhost:7000/api/stock/ABC123
+
+# Get products from specific distributor
+curl -H "X-API-Key: your-key" http://localhost:7000/api/distributors/Communica/products
+
+# Get statistics
+curl -H "X-API-Key: your-key" http://localhost:7000/api/stats
+```
+
+### WebSocket Integration
+
+```javascript
+const socket = io('http://localhost:7000');
+
+// Join scraping updates room
+socket.emit('join_room', { room: 'scraping' });
+
+// Listen for real-time updates
+socket.on('scraping_progress', (data) => {
+  console.log('Scraping progress:', data);
+});
+
+socket.on('distributor_completed', (data) => {
+  console.log('Distributor completed:', data);
+});
+```
+
+## 🔧 Management Commands
+
+### Docker Commands
+```bash
+# Start services
+./docker-start.sh
+
+# Test API
+./docker-test.sh
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+
+# Restart services
+docker-compose restart
+```
+
+### Legacy CLI Usage
+The original CLI interface is still available:
+
+```bash
+# Scrape all distributors
 python main.py
-```
 
-Scrape specific distributors:
-```bash
+# Scrape specific distributors
 python main.py --distributors Communica MicroRobotics
-```
 
-Custom output file:
-```bash
-python main.py --output my_products.csv
-```
-
-Export as JSON:
-```bash
-python main.py --format json
-```
-
-### Programmatic Usage
-
-```python
-from communica_scraper import CommunicaScraper
-from microrobotics_scraper import MicroRoboticsScraper
-from miro_scraper import MiroScraper
-
-# Scrape Communica
-communica = CommunicaScraper()
-products = communica.run()
-
-# Save to CSV
-communica.save_to_csv('communica_products.csv', products)
+# Start web interface (legacy)
+python main.py --web
 ```
 
 ## Output Files

@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: electronics_db
+    environment:
+      POSTGRES_DB: electronics_db
+      POSTGRES_USER: electronics_user
+      POSTGRES_PASSWORD: electronics_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - electronics_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U electronics_user -d electronics_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: electronics_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - electronics_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Main API Application
+  api:
+    build: .
+    container_name: electronics_api
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://electronics_user:electronics_password@postgres:5432/electronics_db
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: electronics_db
+      DB_USER: electronics_user
+      DB_PASSWORD: electronics_password
+      
+      # Flask Configuration
+      FLASK_ENV: production
+      SECRET_KEY: your-super-secret-key-change-in-production
+      JWT_SECRET_KEY: your-jwt-secret-key-change-in-production
+      
+      # API Configuration
+      API_RATE_LIMIT: 1000
+      DEFAULT_PAGE_SIZE: 50
+      MAX_PAGE_SIZE: 1000
+      
+      # Scraping Configuration
+      SCRAPING_INTERVAL_MINUTES: 25
+      SCRAPING_ENABLED: "true"
+      
+      # WebSocket Configuration
+      WEBSOCKET_ENABLED: "true"
+      
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "7000:7000"
+    volumes:
+      - ./output:/app/output
+      - ./logs:/app/logs
+    networks:
+      - electronics_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/api/auth/me"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    container_name: electronics_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - electronics_network
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  electronics_network:
+    driver: bridge

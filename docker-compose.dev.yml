@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Development
+  postgres:
+    image: postgres:15-alpine
+    container_name: electronics_db_dev
+    environment:
+      POSTGRES_DB: electronics_db
+      POSTGRES_USER: electronics_user
+      POSTGRES_PASSWORD: electronics_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - electronics_network
+    restart: unless-stopped
+
+  # Redis for Development
+  redis:
+    image: redis:7-alpine
+    container_name: electronics_redis_dev
+    ports:
+      - "6379:6379"
+    networks:
+      - electronics_network
+    restart: unless-stopped
+
+  # Development API (with volume mounting for live code changes)
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: electronics_api_dev
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://electronics_user:electronics_password@postgres:5432/electronics_db
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: electronics_db
+      DB_USER: electronics_user
+      DB_PASSWORD: electronics_password
+      
+      # Flask Configuration
+      FLASK_ENV: development
+      SECRET_KEY: dev-secret-key
+      JWT_SECRET_KEY: dev-jwt-secret-key
+      
+      # API Configuration
+      API_RATE_LIMIT: 10000
+      DEFAULT_PAGE_SIZE: 50
+      MAX_PAGE_SIZE: 1000
+      
+      # Scraping Configuration
+      SCRAPING_INTERVAL_MINUTES: 25
+      SCRAPING_ENABLED: "true"
+      
+      # WebSocket Configuration
+      WEBSOCKET_ENABLED: "true"
+      
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "7000:7000"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - ./output:/app/output
+      - ./logs:/app/logs
+    networks:
+      - electronics_network
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    command: ["python", "api_app.py"]
+
+volumes:
+  postgres_data_dev:
+    driver: local
+
+networks:
+  electronics_network:
+    driver: bridge
