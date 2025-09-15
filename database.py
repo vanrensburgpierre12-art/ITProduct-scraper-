@@ -63,7 +63,7 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # JSON field for additional metadata
-    metadata = db.Column(JSONB)
+    product_metadata = db.Column(JSONB)
     
     # Indexes for better query performance
     __table_args__ = (
@@ -90,7 +90,7 @@ class Product(db.Model):
             'product_url': self.product_url,
             'last_updated': self.last_updated.isoformat(),
             'created_at': self.created_at.isoformat(),
-            'metadata': self.metadata
+            'metadata': self.product_metadata
         }
 
 class StockHistory(db.Model):
