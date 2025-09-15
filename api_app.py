@@ -27,12 +27,38 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'poolclass': 'QueuePool',
+    'pool_size': 5,  # Reduced pool size to avoid threading issues
+    'max_overflow': 10,  # Reduced max overflow
+    'pool_pre_ping': True,
+    'pool_recycle': 1800,  # 30 minutes
+    'pool_timeout': 20,  # Reduced timeout
+    'echo': False,
+    'connect_args': {
+        'connect_timeout': 10,
+        'application_name': 'electronics_api'
+    }
+}
 
 # Initialize extensions
 CORS(app)
 db.init_app(app)
 jwt = init_auth(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Add request teardown handler for proper session cleanup
+@app.teardown_appcontext
+def close_db(error):
+    """Close database connection on request teardown"""
+    if error:
+        db.session.rollback()
+    else:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Database error during teardown: {str(e)}")
 
 # Global variables for tracking scraping progress
 scraping_status = {
@@ -98,6 +124,25 @@ def login():
 def get_current_user():
     """Get current user information"""
     return jsonify(request.current_user.to_dict())
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    try:
+        # Test database connection
+        db.session.execute('SELECT 1')
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
 
 # ============================================================================
 # PRODUCT ENDPOINTS
