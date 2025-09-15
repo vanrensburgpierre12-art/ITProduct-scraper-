@@ -8,9 +8,23 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.pool import QueuePool
 import bcrypt
 
-db = SQLAlchemy()
+# Configure SQLAlchemy with proper connection pool settings
+db = SQLAlchemy(engine_options={
+    'poolclass': QueuePool,
+    'pool_size': 5,  # Reduced pool size to avoid threading issues
+    'max_overflow': 10,  # Reduced max overflow
+    'pool_pre_ping': True,
+    'pool_recycle': 1800,  # 30 minutes
+    'pool_timeout': 20,  # Reduced timeout
+    'echo': False,
+    'connect_args': {
+        'connect_timeout': 10,
+        'application_name': 'electronics_api'
+    }
+})
 
 class User(db.Model):
     """User model for API authentication"""
@@ -164,3 +178,38 @@ def init_db(app):
     db.init_app(app)
     migrate = Migrate(app, db)
     return migrate
+
+class DatabaseSession:
+    """Context manager for database sessions with robust error handling"""
+    def __init__(self):
+        self.session = None
+    
+    def __enter__(self):
+        try:
+            self.session = db.session
+            return self.session
+        except Exception as e:
+            # If we can't get a session, try to create a new one
+            try:
+                db.session.rollback()
+                self.session = db.session
+                return self.session
+            except Exception as e2:
+                raise Exception(f"Failed to get database session: {e2}")
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            try:
+                if exc_type is not None:
+                    self.session.rollback()
+                else:
+                    self.session.commit()
+            except Exception as e:
+                # If commit fails, try rollback
+                try:
+                    self.session.rollback()
+                except:
+                    pass
+                # Don't re-raise the exception to avoid masking the original error
+                print(f"Database session cleanup error: {e}")
+        # Don't close the session here as Flask-SQLAlchemy manages it
