@@ -45,11 +45,23 @@ For each product:
 ## 🛠️ Installation
 
 ### Prerequisites
-- Python 3.7+
-- PostgreSQL 12+
-- Chrome browser (for scraping)
+- **Docker & Docker Compose** (Recommended)
+- OR Python 3.7+ + PostgreSQL 12+ + Chrome browser
 
-### Quick Start
+### 🐳 Docker Quick Start (Recommended)
+
+1. **Clone and start**:
+   ```bash
+   git clone <your-repo>
+   cd electronics-distributors-api
+   ./docker-start.sh
+   ```
+
+That's it! The API will be available at `http://localhost:7000`
+
+📖 **Full Docker Guide**: [DOCKER_GUIDE.md](DOCKER_GUIDE.md)
+
+### 🐍 Manual Installation
 
 1. **Clone and setup**:
    ```bash
@@ -132,8 +144,27 @@ socket.on('distributor_completed', (data) => {
 });
 ```
 
-## 🔧 Legacy CLI Usage
+## 🔧 Management Commands
 
+### Docker Commands
+```bash
+# Start services
+./docker-start.sh
+
+# Test API
+./docker-test.sh
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+
+# Restart services
+docker-compose restart
+```
+
+### Legacy CLI Usage
 The original CLI interface is still available:
 
 ```bash
