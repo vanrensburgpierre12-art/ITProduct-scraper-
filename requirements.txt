@@ -6,3 +6,12 @@ lxml==4.9.3
 webdriver-manager==4.0.1
 flask==3.0.0
 flask-cors==4.0.0
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.5
+flask-jwt-extended==4.6.0
+flask-socketio==5.3.6
+apscheduler==3.10.4
+python-dotenv==1.0.0
+bcrypt==4.1.2
