@@ -796,4 +796,5 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
+    # For development only - use start_api.py for production
     socketio.run(app, debug=True, host='0.0.0.0', port=7000, allow_unsafe_werkzeug=True)
