@@ -35,11 +35,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 1800,  # 30 minutes
     'pool_timeout': 20,  # Reduced timeout
-    'echo': False,
-    'connect_args': {
-        'connect_timeout': 10,
-        'application_name': 'electronics_api'
-    }
+    'echo': False
 }
 
 # Initialize extensions
@@ -52,14 +48,20 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 @app.teardown_appcontext
 def close_db(error):
     """Close database connection on request teardown"""
-    if error:
-        db.session.rollback()
-    else:
-        try:
-            db.session.commit()
-        except Exception as e:
+    try:
+        if error:
             db.session.rollback()
-            app.logger.error(f"Database error during teardown: {str(e)}")
+        else:
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Database error during teardown: {str(e)}")
+    finally:
+        # Ensure session is properly closed
+        try:
+            db.session.close()
+        except:
+            pass
 
 # Global variables for tracking scraping progress
 scraping_status = {
@@ -108,7 +110,21 @@ def login():
     if not data or not data.get('username') or not data.get('password'):
         return jsonify({'error': 'Username and password are required'}), 400
     
+    # Try to authenticate with username first
     user = authenticate_user(data['username'], data['password'])
+    
+    # If username fails, try to find user by email and authenticate
+    if not user:
+        try:
+            user_by_email = User.query.filter_by(email=data['username']).first()
+            if user_by_email and user_by_email.check_password(data['password']) and user_by_email.is_active:
+                user_by_email.last_login = datetime.utcnow()
+                db.session.commit()
+                user = user_by_email
+        except Exception as e:
+            current_app.logger.error(f"Error in email authentication: {str(e)}")
+            db.session.rollback()
+    
     if not user:
         return jsonify({'error': 'Invalid credentials'}), 401
     
@@ -131,7 +147,8 @@ def health_check():
     """Health check endpoint"""
     try:
         # Test database connection
-        db.session.execute('SELECT 1')
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
