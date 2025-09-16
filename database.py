@@ -8,6 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 from sqlalchemy.pool import QueuePool
 import bcrypt
 
@@ -19,11 +20,7 @@ db = SQLAlchemy(engine_options={
     'pool_pre_ping': True,
     'pool_recycle': 1800,  # 30 minutes
     'pool_timeout': 20,  # Reduced timeout
-    'echo': False,
-    'connect_args': {
-        'connect_timeout': 10,
-        'application_name': 'electronics_api'
-    }
+    'echo': False
 })
 
 class User(db.Model):
@@ -77,7 +74,7 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # JSON field for additional metadata
-    product_metadata = db.Column(JSONB)
+    product_metadata = db.Column(JSON)
     
     # Indexes for better query performance
     __table_args__ = (
@@ -186,6 +183,7 @@ class DatabaseSession:
     
     def __enter__(self):
         try:
+            # Use scoped_session for thread safety
             self.session = db.session
             return self.session
         except Exception as e:
@@ -212,4 +210,9 @@ class DatabaseSession:
                     pass
                 # Don't re-raise the exception to avoid masking the original error
                 print(f"Database session cleanup error: {e}")
-        # Don't close the session here as Flask-SQLAlchemy manages it
+            finally:
+                # Ensure session is properly closed
+                try:
+                    self.session.close()
+                except:
+                    pass

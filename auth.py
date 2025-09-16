@@ -26,69 +26,57 @@ def init_auth(app):
 def create_user(username, email, password):
     """Create a new user"""
     try:
-        with DatabaseSession() as session:
-            # Check if user already exists
-            if User.query.filter_by(username=username).first():
-                return None, "Username already exists"
-            
-            if User.query.filter_by(email=email).first():
-                return None, "Email already exists"
-            
-            # Create new user
-            user = User(
-                username=username,
-                email=email,
-                api_key=generate_api_key()
-            )
-            user.set_password(password)
-            
-            session.add(user)
-            session.commit()
-            return user, None
+        # Check if user already exists
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            return None, "Username already exists"
+        
+        existing_email = User.query.filter_by(email=email).first()
+        if existing_email:
+            return None, "Email already exists"
+        
+        # Create new user
+        user = User(
+            username=username,
+            email=email,
+            api_key=generate_api_key()
+        )
+        user.set_password(password)
+        
+        db.session.add(user)
+        db.session.commit()
+        return user, None
     except Exception as e:
+        db.session.rollback()
         return None, str(e)
 
 def authenticate_user(username, password):
-    """Authenticate user with username and password with retry mechanism"""
-    max_retries = 3
-    retry_delay = 0.1
-    
-    for attempt in range(max_retries):
-        try:
-            with DatabaseSession() as session:
-                user = User.query.filter_by(username=username).first()
-                if user and user.check_password(password) and user.is_active:
-                    user.last_login = datetime.utcnow()
-                    session.commit()
-                    return user
-                return None
-        except Exception as e:
-            current_app.logger.error(f"Error in authenticate_user (attempt {attempt + 1}): {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
-            else:
-                return None
+    """Authenticate user with username and password"""
+    try:
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password) and user.is_active:
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            return user
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Error in authenticate_user: {str(e)}")
+        db.session.rollback()
+        return None
 
 def authenticate_api_key(api_key):
-    """Authenticate user with API key with retry mechanism"""
-    max_retries = 3
-    retry_delay = 0.1
-    
-    for attempt in range(max_retries):
-        try:
-            with DatabaseSession() as session:
-                user = User.query.filter_by(api_key=api_key, is_active=True).first()
-                if user:
-                    user.last_login = datetime.utcnow()
-                    session.commit()
-                    return user
-                return None
-        except Exception as e:
-            current_app.logger.error(f"Error in authenticate_api_key (attempt {attempt + 1}): {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
-            else:
-                return None
+    """Authenticate user with API key"""
+    try:
+        user = User.query.filter_by(api_key=api_key, is_active=True).first()
+        if user:
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            return user
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Error in authenticate_api_key: {str(e)}")
+        db.session.rollback()
+        return None
 
 def require_auth(f):
     """Decorator to require authentication via API key or JWT token"""
