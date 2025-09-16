@@ -12,6 +12,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from sqlalchemy import and_, or_, desc, func
 from sqlalchemy.orm import joinedload
+from sqlalchemy.pool import QueuePool
 import pandas as pd
 
 from database import db, Product, StockHistory, ScrapingLog, User
@@ -28,7 +29,7 @@ app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'poolclass': 'QueuePool',
+    'poolclass': QueuePool,
     'pool_size': 5,  # Reduced pool size to avoid threading issues
     'max_overflow': 10,  # Reduced max overflow
     'pool_pre_ping': True,
